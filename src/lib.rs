@@ -4,3 +4,13 @@ struct User {
     password: String,
     rooms: Vec<Room>,
 }
+
+struct Room {
+    id: u32,
+    messages: Vec<Message>,
+}
+
+struct Message {
+    id: u32,
+    content: String,
+}
