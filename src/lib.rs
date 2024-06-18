@@ -1,4 +1,7 @@
-use sea_orm::entity::prelude::*;
+use rocket::{
+    form::{Form, FromForm},
+    post,
+};
 
 struct User {
     id: u32,
@@ -8,8 +11,6 @@ struct User {
     rooms: Vec<Room>,
 }
 
-impl User {}
-
 struct Room {
     id: u32,
     messages: Vec<Message>,
@@ -18,4 +19,15 @@ struct Room {
 struct Message {
     id: u32,
     content: String,
+}
+
+#[derive(FromForm)]
+pub struct LoginForm {
+    email: String,
+    password: String,
+}
+
+#[post("/login/checkuser", data = "<login_form>")]
+pub async fn check_user(login_form: Form<LoginForm>) -> Option<String> {
+    Some("Example".to_string())
 }
