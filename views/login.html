@@ -1,19 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" color-mode="user">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Login/Register</title>
-    <link href="css/style.css" rel="stylesheet" />
+    <link href="/public/style.css" rel="stylesheet" />
   </head>
   <body>
-    <h1>Login/Register</h1>
-    <form>
-      <label for="email">E-mail</label>
-      <input type="email" name="email" />
-      <label for="password">Password</label>
-      <input type="password" name="password" />
-      <button type="submit">Login/Register</button>
-    </form>
+    <main>
+      <section>
+        <form>
+          <header><h1>Login/Register</h1></header>
+          <label for="email">E-mail</label>
+          <input
+            type="email"
+            name="email"
+            size="30"
+            placeholder="name@example.com"
+          />
+          <label for="password">Password</label>
+          <input
+            type="password"
+            name="password"
+            size="30"
+            placeholder="password"
+          />
+          <button type="submit">Login/Register</button>
+        </form>
+      </section>
+    </main>
   </body>
 </html>

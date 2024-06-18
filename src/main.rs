@@ -1,4 +1,7 @@
-use rocket::{fs::NamedFile, get, launch, routes};
+use rocket::{
+    fs::{FileServer, NamedFile},
+    get, launch, routes,
+};
 
 #[get("/<file>")]
 async fn serve_page(file: &str) -> Option<NamedFile> {
@@ -7,5 +10,7 @@ async fn serve_page(file: &str) -> Option<NamedFile> {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![serve_page])
+    rocket::build()
+        .mount("/", routes![serve_page])
+        .mount("/public", FileServer::from("public"))
 }
