@@ -1,8 +1,14 @@
 use rocket::{
+<<<<<<< HEAD
     form::{Form, FromForm}, post
 };
 use surrealdb::engine::remote::ws;
 use surrealdb::Surreal;
+=======
+    form::{Form, FromForm},
+    post,
+};
+>>>>>>> f29454a42c91a67900bd4df20f8a6079dc64c947
 
 struct User {
     id: u32,
@@ -29,6 +35,7 @@ pub struct LoginForm {
 }
 
 #[post("/login/checkuser", data = "<login_form>")]
+<<<<<<< HEAD
 pub async fn check_user(login_form: Form<LoginForm>) -> rocket::response::Redirect {
     let id = get_user(login_form.email.to_owned(),login_form.password.to_owned()).await;
     match id {
@@ -58,4 +65,8 @@ pub async fn connect_to_db() -> Option<Surreal<ws::Client>> {
 
     db.use_ns("tobychat").use_db("main").await.ok()?;
     Some(db)
+=======
+pub async fn check_user(login_form: Form<LoginForm>) -> Option<String> {
+    Some("Example".to_string())
+>>>>>>> f29454a42c91a67900bd4df20f8a6079dc64c947
 }

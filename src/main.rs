@@ -2,6 +2,10 @@ use rocket::{
     fs::{FileServer, NamedFile},
     get, launch, routes,
 };
+<<<<<<< HEAD
+=======
+use sea_orm::Database;
+>>>>>>> f29454a42c91a67900bd4df20f8a6079dc64c947
 
 #[get("/<file>")]
 async fn serve_page(file: &str) -> Option<NamedFile> {
