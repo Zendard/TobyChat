@@ -2,6 +2,7 @@ use rocket::{
     response::*,
     form::{Form, FromForm}, post
 };
+use serde::Deserialize;
 use surrealdb::engine::remote::ws;
 use surrealdb::Surreal;
 
@@ -10,7 +11,7 @@ struct User {
     email: String,
     username: String,
     password: String,
-    rooms: Vec<Room>,
+    //rooms: Vec<Room>,
 }
 
 struct Room {
@@ -31,32 +32,31 @@ pub struct LoginForm {
 
 #[post("/login/checkuser", data = "<login_form>")]
 pub async fn check_user(login_form: Form<LoginForm>) -> Redirect {
-    let id = get_user(login_form.email.to_owned(),login_form.password.to_owned()).await;
+    let id = get_user(&login_form.email,&login_form.password).await;
     match id {
     None => rocket::response::Redirect::to("/register"),
     Some(_id) => rocket::response::Redirect::to("/"),
 }
 }
 
-pub async fn get_user(email:String,password:String)->Option<String>{
-    let db = connect_to_db().await?;
-    dbg!(db.query("SELECT * FROM users").await.unwrap());
-    let mut id = db
-        .query("SELECT id FROM users WHERE email=$email OR password=$password")
-        .bind((email,password)).await.unwrap();
-    dbg!(&id);
+pub async fn get_user(email:&String,password:&String)->Option<String>{
+    let db = connect_to_db().await;
+    let mut response = db
+        .query(format!("type::string((SELECT id FROM user WHERE email='{email}' AND password='{password}')[0].id)")).await.unwrap();
 
-    id.take(0).unwrap()
+    let user:Option<String> = response.take(0).ok()?;
+
+    user
 }
 
-pub async fn connect_to_db() -> Option<Surreal<ws::Client>> {
-    let db = Surreal::new::<ws::Ws>("localhost:5000").await.ok()?;
+pub async fn connect_to_db() -> Surreal<ws::Client> {
+    let db = Surreal::new::<ws::Ws>("localhost:5000").await.unwrap();
 
     db.signin(surrealdb::opt::auth::Root{
         username: "root",
         password: env!("DB_PASSWORD"),
-    }).await.ok()?;
+    }).await.unwrap();
 
-    db.use_ns("tobychat").use_db("main").await.ok()?;
-    Some(db)
+    db.use_ns("tobychat").use_db("main").await.unwrap();
+    db
 }
