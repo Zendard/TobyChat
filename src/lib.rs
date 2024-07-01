@@ -1,8 +1,6 @@
 use rocket::{
-    response::*,
     form::{Form, FromForm}, post
 };
-use serde::Deserialize;
 use surrealdb::engine::remote::ws;
 use surrealdb::Surreal;
 
@@ -30,23 +28,46 @@ pub struct LoginForm {
     password: String,
 }
 
-#[post("/login/checkuser", data = "<login_form>")]
-pub async fn check_user(login_form: Form<LoginForm>) -> Redirect {
-    let id = get_user(&login_form.email,&login_form.password).await;
-    match id {
-    None => rocket::response::Redirect::to("/register"),
-    Some(_id) => rocket::response::Redirect::to("/"),
-}
+pub enum LoginResult{
+    Id(String),
+    WrongPassword,
+    NewUser
 }
 
-pub async fn get_user(email:&String,password:&String)->Option<String>{
+#[post("/login/checkuser", data = "<login_form>")]
+pub async fn check_user(login_form: Form<LoginForm>) -> String{
+    match get_user(&login_form.email,&login_form.password).await{
+        LoginResult::Id(id) => id,
+        LoginResult::NewUser => "NewUser".to_string(),
+        LoginResult::WrongPassword => "WrongPassword".to_string()
+    }
+}
+
+pub async fn get_user(email:&String,password:&String)-> LoginResult {
     let db = connect_to_db().await;
     let mut response = db
         .query(format!("type::string((SELECT id FROM user WHERE email='{email}' AND password='{password}')[0].id)")).await.unwrap();
 
-    let user:Option<String> = response.take(0).ok()?;
+    let user:Option<Option<String>> = response.take(0).ok();
 
-    user
+    match user{
+       None=>{if user_exists(email).await{
+            return LoginResult::WrongPassword
+        }
+        return LoginResult::NewUser
+    },
+    Some(id)=>return LoginResult::Id(id.unwrap())
+    }
+
+}
+
+async fn user_exists(email:&String) -> bool {
+    let db= connect_to_db().await;
+    let mut response = db.query(format!("SELECT email FROM user WHERE email='{email}'")).await.unwrap();
+
+   let records:Vec<String> = response.take((0,"email")).unwrap();
+
+   !records.is_empty()
 }
 
 pub async fn connect_to_db() -> Surreal<ws::Client> {
