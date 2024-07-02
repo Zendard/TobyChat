@@ -1,15 +1,14 @@
-use rocket::{
-    form::{Form, FromForm}, post
-};
-use surrealdb::engine::remote::ws;
-use surrealdb::Surreal;
+use rocket::{form::{Form, FromForm}, post, http::CookieJar};
+use surrealdb::{Surreal,engine::remote::ws, sql::{Datetime, Uuid}};
 
+#[derive(serde::Deserialize)]
 struct User {
-    id: u32,
     email: String,
     username: String,
     password: String,
+    session: Uuid,
     //rooms: Vec<Room>,
+    created: Datetime,
 }
 
 struct Room {
@@ -22,7 +21,7 @@ struct Message {
     content: String,
 }
 
-#[derive(FromForm)]
+#[derive(FromForm, Debug)]
 pub struct LoginForm {
     email: String,
     password: String,
@@ -35,11 +34,12 @@ pub enum LoginResult{
 }
 
 #[post("/login/checkuser", data = "<login_form>")]
-pub async fn check_user(login_form: Form<LoginForm>) -> String{
+pub async fn check_user(login_form: Form<LoginForm>, jar:&CookieJar<'_>) -> String{
+    dbg!(&login_form);
     match get_user(&login_form.email,&login_form.password).await{
-        LoginResult::Id(id) => id,
-        LoginResult::NewUser => "NewUser".to_string(),
-        LoginResult::WrongPassword => "WrongPassword".to_string()
+        LoginResult::NewUser => return "NewUser".to_string(),
+        LoginResult::WrongPassword => return "WrongPassword".to_string(),
+        LoginResult::Id(id) => create_session(id, jar).await
     }
 }
 
@@ -80,4 +80,22 @@ pub async fn connect_to_db() -> Surreal<ws::Client> {
 
     db.use_ns("tobychat").use_db("main").await.unwrap();
     db
+}
+
+pub async fn create_session(id:String, jar:&CookieJar<'_>)->String{
+    let db = connect_to_db().await;
+
+    
+    db.query(format!("UPDATE {id} SET session=rand::uuid::v7()")).await.unwrap();
+    let mut response = db.query(format!("RETURN {id}.session")).await.unwrap();
+
+    dbg!(&response);
+
+    let session:Option<Uuid> = response.take(0).unwrap();
+    dbg!(&session);
+    let session = session.unwrap().to_raw();
+
+    jar.add(("session", session));
+
+    "LoggedIn".to_string()
 }

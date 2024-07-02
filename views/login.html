@@ -9,7 +9,7 @@
   <body>
     <main>
       <section>
-        <form action="/login/checkuser" method="post">
+        <form id="login" onsubmit="return false">
           <header><h1>Login/Register</h1></header>
           <label for="email">E-mail</label>
           <input
@@ -29,5 +29,6 @@
         </form>
       </section>
     </main>
+    <script src="/public/login.js"></script>
   </body>
 </html>
