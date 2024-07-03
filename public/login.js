@@ -15,7 +15,8 @@ function handleResponse(text){
 
   switch (text) {
     case "NewUser":
-      window.location.href="/register"
+      form.attributes.removeNamedItem("onsubmit") 
+      form.submit()
       break
 
     case "WrongPassword":

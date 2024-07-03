@@ -1,4 +1,4 @@
-use rocket::{form::{Form, FromForm}, post, http::{CookieJar,Cookie}};
+use rocket::{form::{Form, FromForm}, post, http::CookieJar, serde::Serialize};
 use surrealdb::{Surreal,engine::remote::ws, sql::{Datetime, Uuid}};
 
 #[derive(serde::Deserialize)]
@@ -21,8 +21,15 @@ struct Message {
     content: String,
 }
 
-#[derive(FromForm, Debug)]
+#[derive(FromForm, Debug, Serialize)]
 pub struct LoginForm {
+    email: String,
+    password: String,
+}
+
+#[derive(FromForm, Debug, Serialize)]
+pub struct RegisterForm {
+    username: String,
     email: String,
     password: String,
 }
@@ -40,6 +47,11 @@ pub async fn check_user(login_form: Form<LoginForm>, jar:&CookieJar<'_>) -> Stri
         LoginResult::WrongPassword => return "WrongPassword".to_string(),
         LoginResult::Id(id) => create_session(id, jar).await
     }
+}
+
+#[post("/register/process", data = "<register_form>")]
+pub async fn register_user(register_form: Form<RegisterForm>) {
+    db_create_user(register_form.into_inner());
 }
 
 pub async fn get_user(email:&String,password:&String)-> LoginResult {
@@ -94,4 +106,8 @@ pub async fn create_session(id:String, jar:&CookieJar<'_>)->String{
     jar.add_private(("session", session));
 
     "LoggedIn".to_string()
+}
+
+pub async fn db_create_user(user_info:RegisterForm){
+
 }
