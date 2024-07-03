@@ -1,4 +1,4 @@
-use rocket::{form::{Form, FromForm}, post, http::CookieJar};
+use rocket::{form::{Form, FromForm}, post, http::{CookieJar,Cookie}};
 use surrealdb::{Surreal,engine::remote::ws, sql::{Datetime, Uuid}};
 
 #[derive(serde::Deserialize)]
@@ -35,7 +35,6 @@ pub enum LoginResult{
 
 #[post("/login/checkuser", data = "<login_form>")]
 pub async fn check_user(login_form: Form<LoginForm>, jar:&CookieJar<'_>) -> String{
-    dbg!(&login_form);
     match get_user(&login_form.email,&login_form.password).await{
         LoginResult::NewUser => return "NewUser".to_string(),
         LoginResult::WrongPassword => return "WrongPassword".to_string(),
@@ -89,13 +88,10 @@ pub async fn create_session(id:String, jar:&CookieJar<'_>)->String{
     db.query(format!("UPDATE {id} SET session=rand::uuid::v7()")).await.unwrap();
     let mut response = db.query(format!("RETURN {id}.session")).await.unwrap();
 
-    dbg!(&response);
-
     let session:Option<Uuid> = response.take(0).unwrap();
-    dbg!(&session);
     let session = session.unwrap().to_raw();
 
-    jar.add(("session", session));
+    jar.add_private(("session", session));
 
     "LoggedIn".to_string()
 }
