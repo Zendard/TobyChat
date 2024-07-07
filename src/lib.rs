@@ -1,6 +1,6 @@
 use rocket::{
     form::{Form, FromForm},
-    http::CookieJar,
+    http::{Cookie, CookieJar},
     post,
     response::Redirect,
     serde::Serialize,
@@ -122,7 +122,9 @@ pub async fn create_session(id: String, jar: &CookieJar<'_>) -> String {
     let session: Option<Uuid> = response.take(0).unwrap();
     let session = session.unwrap().to_raw();
 
-    jar.add_private(("session", session));
+    let cookie = Cookie::build(("session", session)).secure(true);
+
+    jar.add_private(cookie);
 
     "LoggedIn".to_string()
 }
