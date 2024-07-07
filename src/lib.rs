@@ -1,5 +1,15 @@
-use rocket::{form::{Form, FromForm}, post, http::CookieJar, serde::Serialize};
-use surrealdb::{Surreal,engine::remote::ws, sql::{Datetime, Uuid}};
+use rocket::{
+    form::{Form, FromForm},
+    http::CookieJar,
+    post,
+    response::Redirect,
+    serde::Serialize,
+};
+use surrealdb::{
+    engine::remote::ws,
+    sql::{Datetime, Uuid},
+    Surreal,
+};
 
 #[derive(serde::Deserialize)]
 struct User {
@@ -34,73 +44,82 @@ pub struct RegisterForm {
     password: String,
 }
 
-pub enum LoginResult{
+pub enum LoginResult {
     Id(String),
     WrongPassword,
-    NewUser
+    NewUser,
 }
 
 #[post("/login/checkuser", data = "<login_form>")]
-pub async fn check_user(login_form: Form<LoginForm>, jar:&CookieJar<'_>) -> String{
-    match get_user(&login_form.email,&login_form.password).await{
+pub async fn check_user(login_form: Form<LoginForm>, jar: &CookieJar<'_>) -> String {
+    match get_user(&login_form.email, &login_form.password).await {
         LoginResult::NewUser => return "NewUser".to_string(),
         LoginResult::WrongPassword => return "WrongPassword".to_string(),
-        LoginResult::Id(id) => create_session(id, jar).await
+        LoginResult::Id(id) => create_session(id, jar).await,
     }
 }
 
 #[post("/register/process", data = "<register_form>")]
-pub async fn register_user(register_form: Form<RegisterForm>) {
-    db_create_user(register_form.into_inner());
+pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
+    match db_create_user(register_form.into_inner()).await {
+        Ok(_) => return Redirect::to("/login?register=sucess"),
+        Err(_) => return Redirect::to("/register?register=error"),
+    }
 }
 
-pub async fn get_user(email:&String,password:&String)-> LoginResult {
+pub async fn get_user(email: &String, password: &String) -> LoginResult {
     let db = connect_to_db().await;
     let mut response = db
-        .query(format!("type::string((SELECT id FROM user WHERE email='{email}' AND password='{password}')[0].id)")).await.unwrap();
+        .query(format!("type::string((SELECT id FROM user WHERE email='{email}' AND crypto::bcrypt::compare(password_hash, '{password}'))[0].id)")).await.unwrap();
 
-    let user:Option<Option<String>> = response.take(0).ok();
+    let user: Option<Option<String>> = response.take(0).ok();
 
-    match user{
-       None=>{if user_exists(email).await{
-            return LoginResult::WrongPassword
+    match user {
+        None => {
+            if user_exists(email).await {
+                return LoginResult::WrongPassword;
+            }
+            return LoginResult::NewUser;
         }
-        return LoginResult::NewUser
-    },
-    Some(id)=>return LoginResult::Id(id.unwrap())
+        Some(id) => return LoginResult::Id(id.unwrap()),
     }
-
 }
 
-async fn user_exists(email:&String) -> bool {
-    let db= connect_to_db().await;
-    let mut response = db.query(format!("SELECT email FROM user WHERE email='{email}'")).await.unwrap();
+async fn user_exists(email: &String) -> bool {
+    let db = connect_to_db().await;
+    let mut response = db
+        .query(format!("SELECT email FROM user WHERE email='{email}'"))
+        .await
+        .unwrap();
 
-   let records:Vec<String> = response.take((0,"email")).unwrap();
+    let records: Vec<String> = response.take((0, "email")).unwrap();
 
-   !records.is_empty()
+    !records.is_empty()
 }
 
 pub async fn connect_to_db() -> Surreal<ws::Client> {
     let db = Surreal::new::<ws::Ws>("localhost:5000").await.unwrap();
 
-    db.signin(surrealdb::opt::auth::Root{
+    db.signin(surrealdb::opt::auth::Root {
         username: "root",
         password: env!("DB_PASSWORD"),
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     db.use_ns("tobychat").use_db("main").await.unwrap();
     db
 }
 
-pub async fn create_session(id:String, jar:&CookieJar<'_>)->String{
+pub async fn create_session(id: String, jar: &CookieJar<'_>) -> String {
     let db = connect_to_db().await;
 
-    
-    db.query(format!("UPDATE {id} SET session=rand::uuid::v7()")).await.unwrap();
+    db.query(format!("UPDATE {id} SET session=rand::uuid::v7()"))
+        .await
+        .unwrap();
     let mut response = db.query(format!("RETURN {id}.session")).await.unwrap();
 
-    let session:Option<Uuid> = response.take(0).unwrap();
+    let session: Option<Uuid> = response.take(0).unwrap();
     let session = session.unwrap().to_raw();
 
     jar.add_private(("session", session));
@@ -108,6 +127,19 @@ pub async fn create_session(id:String, jar:&CookieJar<'_>)->String{
     "LoggedIn".to_string()
 }
 
-pub async fn db_create_user(user_info:RegisterForm){
+pub async fn db_create_user(user_info: RegisterForm) -> Result<(), surrealdb::Error> {
+    let db = connect_to_db().await;
 
+    db.query(
+        "
+    CREATE user SET
+    username = $username,
+    email = $email,
+    password_hash = crypto::bcrypt::generate($password)
+        ",
+    )
+    .bind(user_info)
+    .await?;
+
+    Ok(())
 }
