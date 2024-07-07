@@ -1,6 +1,6 @@
 use rocket::{
     form::{Form, FromForm},
-    http::{self, Cookie, CookieJar, Status},
+    http::{Cookie, CookieJar, Status},
     post,
     request::{FromRequest, Outcome, Request},
     response::Redirect,
@@ -12,7 +12,7 @@ use surrealdb::{
     Surreal,
 };
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct User {
     email: String,
     username: String,
@@ -21,7 +21,7 @@ pub struct User {
 }
 
 #[derive(Debug)]
-pub struct NotLoggedIn(String);
+pub struct NotLoggedIn;
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for User {
@@ -29,28 +29,29 @@ impl<'r> FromRequest<'r> for User {
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let session_token = match req.cookies().get_private("session") {
-            Some(token) => token,
-            None => return Outcome::Forward(http::Status::Unauthorized),
+            Some(token) => token.value().to_owned(),
+            None => return Outcome::Forward(Status::Unauthorized),
         };
 
         let db = connect_to_db().await;
 
-        let user: Option<User> = match db
+        let user: Option<Option<User>> = db
             .query(format!(
                 "(SELECT email,username,created FROM user WHERE session='{session_token}')[0]"
             ))
             .await
             .unwrap()
             .take(0)
-        {
-            Ok(user) => user,
-            Err(_) => return Outcome::Forward(Status::BadRequest),
-        };
+            .ok();
 
         if let Some(user) = user {
-            return Outcome::Success(user);
+            if let Some(user) = user {
+                Outcome::Success(user)
+            } else {
+                Outcome::Forward(Status::BadRequest)
+            }
         } else {
-            Outcome::Forward(Status::BadRequest)
+            Outcome::Forward(Status::InsufficientStorage)
         }
     }
 }

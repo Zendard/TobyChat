@@ -19,7 +19,9 @@ async fn register_page(values: Form<tobychat::LoginForm>) -> Template {
 }
 
 #[get("/")]
-async fn index(user: User) {}
+async fn index(user: User) -> Template {
+    Template::render("index", user)
+}
 
 #[launch]
 fn rocket() -> _ {
@@ -30,7 +32,8 @@ fn rocket() -> _ {
                 serve_page,
                 tobychat::check_user,
                 register_page,
-                tobychat::register_user
+                tobychat::register_user,
+                index
             ],
         )
         .mount("/public", FileServer::from("public"))
