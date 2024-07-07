@@ -1,7 +1,9 @@
 use rocket::{
     form::Form,
     fs::{FileServer, NamedFile},
-    get, launch, post, routes,
+    get, launch, post,
+    response::Redirect,
+    routes,
 };
 use rocket_dyn_templates::Template;
 use tobychat::User;
@@ -23,6 +25,11 @@ async fn index(user: User) -> Template {
     Template::render("index", user)
 }
 
+#[get("/<_..>", rank = 100)]
+async fn redirect_to_login() -> Redirect {
+    Redirect::to("/login?error=Please%20log%20in")
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
@@ -33,7 +40,8 @@ fn rocket() -> _ {
                 tobychat::check_user,
                 register_page,
                 tobychat::register_user,
-                index
+                index,
+                redirect_to_login
             ],
         )
         .mount("/public", FileServer::from("public"))

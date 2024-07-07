@@ -44,14 +44,10 @@ impl<'r> FromRequest<'r> for User {
             .take(0)
             .ok();
 
-        if let Some(user) = user {
-            if let Some(user) = user {
-                Outcome::Success(user)
-            } else {
-                Outcome::Forward(Status::BadRequest)
-            }
+        if let Some(Some(user)) = user {
+            Outcome::Success(user)
         } else {
-            Outcome::Forward(Status::InsufficientStorage)
+            Outcome::Forward(Status::Unauthorized)
         }
     }
 }
@@ -97,8 +93,10 @@ pub async fn check_user(login_form: Form<LoginForm>, jar: &CookieJar<'_>) -> Str
 #[post("/register/process", data = "<register_form>")]
 pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
     match db_create_user(register_form.into_inner()).await {
-        Ok(_) => Redirect::to("/login?register=sucess"),
-        Err(_) => Redirect::to("/register?register=error"),
+        Ok(_) => Redirect::to("/login?success=Successfully%20registered"),
+        Err(_) => Redirect::to(
+            "/register?error=An%20error%20occurred%20while%20registering,%20try%20again%20later",
+        ),
     }
 }
 
