@@ -88,8 +88,8 @@ pub enum LoginResult {
 #[post("/login/checkuser", data = "<login_form>")]
 pub async fn check_user(login_form: Form<LoginForm>, jar: &CookieJar<'_>) -> String {
     match get_user(&login_form.email, &login_form.password).await {
-        LoginResult::NewUser => return "NewUser".to_string(),
-        LoginResult::WrongPassword => return "WrongPassword".to_string(),
+        LoginResult::NewUser => "NewUser".to_string(),
+        LoginResult::WrongPassword => "WrongPassword".to_string(),
         LoginResult::Id(id) => create_session(id, jar).await,
     }
 }
@@ -97,8 +97,8 @@ pub async fn check_user(login_form: Form<LoginForm>, jar: &CookieJar<'_>) -> Str
 #[post("/register/process", data = "<register_form>")]
 pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
     match db_create_user(register_form.into_inner()).await {
-        Ok(_) => return Redirect::to("/login?register=sucess"),
-        Err(_) => return Redirect::to("/register?register=error"),
+        Ok(_) => Redirect::to("/login?register=sucess"),
+        Err(_) => Redirect::to("/register?register=error"),
     }
 }
 
@@ -114,9 +114,9 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
             if user_exists(email).await {
                 return LoginResult::WrongPassword;
             }
-            return LoginResult::NewUser;
+            LoginResult::NewUser
         }
-        Some(id) => return LoginResult::Id(id.unwrap()),
+        Some(id) => LoginResult::Id(id.unwrap()),
     }
 }
 
