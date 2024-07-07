@@ -4,6 +4,7 @@ use rocket::{
     get, launch, post, routes,
 };
 use rocket_dyn_templates::Template;
+use tobychat::User;
 
 #[get("/<file>")]
 async fn serve_page(file: &str) -> Option<NamedFile> {
@@ -16,6 +17,9 @@ async fn register_page(values: Form<tobychat::LoginForm>) -> Template {
     dbg!(&values);
     Template::render("register", values)
 }
+
+#[get("/")]
+async fn index(user: User) {}
 
 #[launch]
 fn rocket() -> _ {

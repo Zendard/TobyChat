@@ -1,7 +1,8 @@
 use rocket::{
     form::{Form, FromForm},
-    http::{Cookie, CookieJar},
+    http::{self, Cookie, CookieJar, Status},
     post,
+    request::{FromRequest, Outcome, Request},
     response::Redirect,
     serde::Serialize,
 };
@@ -12,13 +13,46 @@ use surrealdb::{
 };
 
 #[derive(serde::Deserialize)]
-struct User {
+pub struct User {
     email: String,
     username: String,
-    password: String,
-    session: Uuid,
     //rooms: Vec<Room>,
     created: Datetime,
+}
+
+#[derive(Debug)]
+pub struct NotLoggedIn(String);
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for User {
+    type Error = NotLoggedIn;
+
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let session_token = match req.cookies().get_private("session") {
+            Some(token) => token,
+            None => return Outcome::Forward(http::Status::Unauthorized),
+        };
+
+        let db = connect_to_db().await;
+
+        let user: Option<User> = match db
+            .query(format!(
+                "(SELECT email,username,created FROM user WHERE session='{session_token}')[0]"
+            ))
+            .await
+            .unwrap()
+            .take(0)
+        {
+            Ok(user) => user,
+            Err(_) => return Outcome::Forward(Status::BadRequest),
+        };
+
+        if let Some(user) = user {
+            return Outcome::Success(user);
+        } else {
+            Outcome::Forward(Status::BadRequest)
+        }
+    }
 }
 
 struct Room {
