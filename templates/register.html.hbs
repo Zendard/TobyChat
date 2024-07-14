@@ -1,46 +1,31 @@
 <!DOCTYPE html>
 <html lang="en" color-mode="user">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Register</title>
-    <link href="public/style.css" rel="stylesheet">
-  </head>
-  <body>
- <main>
-      <section>
-        <form id="register" action="/register/process" method="post">
-          <header><h1>Create New Account</h1></header>
-          <label for="username">Username</label>
-          <input 
-            required
-            type="text" 
-            name="username" 
-            size="30" 
-            placeholder="username"
-          >
-          <label for="email">E-mail</label>
-          <input
-            required
-            type="email"
-            name="email"
-            size="30"
-            placeholder="name@example.com"
-            value={{email}}
-          >
-          <label for="password">Password</label>
-          <input
-            required
-            type="password"
-            name="password"
-            size="30"
-            placeholder="password"
-            value={{password}}
-          >
-          <button type="submit">Login/Register</button>
-        </form>
-      </section>
-    </main>
- 
-  </body>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register</title>
+  <link href="public/style.css" rel="stylesheet">
+</head>
+
+<body>
+  <main>
+    <section>
+      <form id="register" action="/register/process" method="post">
+        <header>
+          <h1>Create New Account</h1>
+        </header>
+        <label for="username">Username</label>
+        <input required type="text" name="username" size="30" placeholder="username">
+        <label for="email">E-mail</label>
+        <input required type="email" name="email" size="30" placeholder="name@example.com" value={{email}}>
+        <label for="password">Password</label>
+        <input required type="password" name="password" size="30" placeholder="password" value={{password}}>
+        <button type="submit">Register</button>
+      </form>
+    </section>
+  </main>
+
+</body>
+
 </html>

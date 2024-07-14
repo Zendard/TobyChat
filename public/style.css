@@ -460,6 +460,10 @@ dialog {
   z-index: 999;
 }
 
+dialog:focus-visible {
+  outline: none;
+}
+
 dialog.error {
   bottom: 5px;
   color: salmon;
