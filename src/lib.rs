@@ -9,7 +9,7 @@ use rocket::{
 use serde::Deserialize;
 use surrealdb::{
     engine::remote::ws,
-    sql::{Datetime, Uuid},
+    sql::{Datetime, Id, Uuid},
     Surreal,
 };
 
@@ -79,7 +79,7 @@ pub struct RegisterForm {
 }
 
 pub enum LoginResult {
-    Id(String),
+    Id(Id),
     WrongPassword,
     NewUser,
 }
@@ -114,10 +114,14 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
 
     let db = connect_to_db().await;
     let mut response = db
-        .query("type::string((SELECT id FROM user WHERE email= $email AND crypto::bcrypt::compare(password_hash, $password))[0].id)")
+        .query("SELECT VALUE id FROM ONLY user WHERE email=$email AND crypto::bcrypt::compare(password_hash, $password) LIMIT 1")
         .bind(EmailPassword{email,password}).await.unwrap();
 
-    let user: Option<Option<String>> = response.take(0).ok();
+    dbg!(&response);
+
+    let user: Option<Option<Id>> = response.take(0).ok();
+
+    dbg!(&user);
 
     match user {
         None => {
@@ -133,12 +137,10 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
 async fn user_exists(email: &String) -> bool {
     let db = connect_to_db().await;
     let mut response = db
-        .query("$email in (SELECT email FROM user).email")
+        .query("$email IN SELECT VALUE email FROM user")
         .bind(("email", email))
         .await
         .unwrap();
-
-    dbg!(&response);
 
     let exists: bool = response.take::<Option<bool>>(0).unwrap().unwrap();
 
@@ -159,17 +161,13 @@ pub async fn connect_to_db() -> Surreal<ws::Client> {
     db
 }
 
-pub async fn create_session(id: String, jar: &CookieJar<'_>) -> String {
+pub async fn create_session(id: Id, jar: &CookieJar<'_>) -> String {
     let db = connect_to_db().await;
     dbg!(&id);
 
-    db.query("UPDATE $id SET session=rand::uuid::v7()")
-        .bind(("id", id.clone()))
-        .await
-        .unwrap();
     let mut response = db
-        .query("SELECT session FROM $id")
-        .bind(("id", id.clone()))
+        .query("SELECT VALUE session FROM ONLY (UPDATE $id SET session=rand::uuid::v7()) LIMIT 1")
+        .bind(("id", id))
         .await
         .unwrap();
 
