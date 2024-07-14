@@ -7,13 +7,15 @@ use rocket::{
     serde::Serialize,
 };
 use serde::Deserialize;
+use std::str::FromStr;
 use surrealdb::{
     engine::remote::ws,
-    sql::{Datetime, Id, Uuid},
+    opt::RecordId,
+    sql::{Datetime, Uuid},
     Surreal,
 };
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 pub struct User {
     email: String,
     username: String,
@@ -29,22 +31,27 @@ impl<'r> FromRequest<'r> for User {
     type Error = NotLoggedIn;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        let session_token = match req.cookies().get_private("session") {
-            Some(token) => token.value().to_owned(),
+        let session_token: Option<Uuid> = match req.cookies().get_private("session") {
+            Some(token) => Uuid::from_str(token.value()).ok(),
             None => return Outcome::Forward(Status::Unauthorized),
+        };
+
+        let session_token = match session_token {
+            Some(token) => token,
+            None => return Outcome::Forward(Status::BadRequest),
         };
 
         let db = connect_to_db().await;
 
-        let response = db
-            .query("(SELECT email,username,created FROM user WHERE session='$session_token')[0]")
-            .bind(session_token)
-            .await;
+        let mut response = db
+            .query(
+                "SELECT email,username,created,->join->room.name AS rooms FROM ONLY user WHERE session=$session_token LIMIT 1",
+            )
+            .bind(("session_token", session_token))
+            .await
+            .unwrap();
 
-        let user: Option<Option<User>> = match response {
-            Ok(mut data) => data.take(0).ok(),
-            Err(_) => return Outcome::Forward(Status::Unauthorized),
-        };
+        let user: Option<Option<User>> = response.take(0).ok();
 
         if let Some(Some(user)) = user {
             Outcome::Success(user)
@@ -54,7 +61,7 @@ impl<'r> FromRequest<'r> for User {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct Room {
     name: String,
     // messages: Vec<Message>,
@@ -79,7 +86,7 @@ pub struct RegisterForm {
 }
 
 pub enum LoginResult {
-    Id(Id),
+    Id(RecordId),
     WrongPassword,
     NewUser,
 }
@@ -117,11 +124,7 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
         .query("SELECT VALUE id FROM ONLY user WHERE email=$email AND crypto::bcrypt::compare(password_hash, $password) LIMIT 1")
         .bind(EmailPassword{email,password}).await.unwrap();
 
-    dbg!(&response);
-
-    let user: Option<Option<Id>> = response.take(0).ok();
-
-    dbg!(&user);
+    let user: Option<Option<RecordId>> = response.take(0).ok();
 
     match user {
         None => {
@@ -161,17 +164,14 @@ pub async fn connect_to_db() -> Surreal<ws::Client> {
     db
 }
 
-pub async fn create_session(id: Id, jar: &CookieJar<'_>) -> String {
+pub async fn create_session(id: RecordId, jar: &CookieJar<'_>) -> String {
     let db = connect_to_db().await;
-    dbg!(&id);
 
     let mut response = db
         .query("SELECT VALUE session FROM ONLY (UPDATE $id SET session=rand::uuid::v7()) LIMIT 1")
         .bind(("id", id))
         .await
         .unwrap();
-
-    dbg!(&response);
 
     let session: Option<Uuid> = response.take(0).unwrap();
     let session = session.unwrap().to_raw();
