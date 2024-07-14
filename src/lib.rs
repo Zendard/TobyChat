@@ -8,7 +8,7 @@ use rocket::{
 };
 use serde::Deserialize;
 use surrealdb::{
-    engine::remote::ws::{self, Client},
+    engine::remote::ws,
     sql::{Datetime, Uuid},
     Surreal,
 };
@@ -113,10 +113,11 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
     }
 
     let db = connect_to_db().await;
+    let mut response = db
+        .query("type::string((SELECT id FROM user WHERE email= $email AND crypto::bcrypt::compare(password_hash, $password))[0].id)")
+        .bind(EmailPassword{email,password}).await.unwrap();
 
-    let user: Option<String> = query_one(&db, 
-        "type::string((SELECT id FROM user WHERE email= $email AND crypto::bcrypt::compare(password_hash, $password))[0].id)",
-        EmailPassword{email,password}).await;
+    let user: Option<Option<String>> = response.take(0).ok();
 
     match user {
         None => {
@@ -125,21 +126,23 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
             }
             LoginResult::NewUser
         }
-        Some(id) => LoginResult::Id(id),
+        Some(id) => LoginResult::Id(id.unwrap()),
     }
 }
 
 async fn user_exists(email: &String) -> bool {
     let db = connect_to_db().await;
+    let mut response = db
+        .query("$email in (SELECT email FROM user).email")
+        .bind(("email", email))
+        .await
+        .unwrap();
 
-    let records: Option<String> = query_one(
-        &db,
-        "SELECT email FROM user WHERE email= $email",
-        ("email", email),
-    )
-    .await;
+    dbg!(&response);
 
-    !records.is_some()
+    let exists: bool = response.take::<Option<bool>>(0).unwrap().unwrap();
+
+    exists
 }
 
 pub async fn connect_to_db() -> Surreal<ws::Client> {
@@ -161,11 +164,18 @@ pub async fn create_session(id: String, jar: &CookieJar<'_>) -> String {
     dbg!(&id);
 
     db.query("UPDATE $id SET session=rand::uuid::v7()")
-        .bind(("id", &id))
+        .bind(("id", id.clone()))
+        .await
+        .unwrap();
+    let mut response = db
+        .query("SELECT session FROM $id")
+        .bind(("id", id.clone()))
         .await
         .unwrap();
 
-    let session: Option<Uuid> = query_one(&db, "RETURN $id.session", ("id", &id)).await;
+    dbg!(&response);
+
+    let session: Option<Uuid> = response.take(0).unwrap();
     let session = session.unwrap().to_raw();
 
     let cookie = Cookie::build(("session", session)).secure(true);
@@ -191,14 +201,4 @@ pub async fn db_create_user(user_info: RegisterForm) -> Result<(), surrealdb::Er
     .await?;
 
     Ok(())
-}
-
-pub async fn query_one<B: Serialize, T: for<'a> Deserialize<'a>>(
-    db: &Surreal<Client>,
-    query: &str,
-    bindings: B,
-) -> Option<T> {
-    let mut response = db.query(query).bind(bindings).await.unwrap();
-    let result: Option<Option<T>> = response.take(0).ok();
-    result?
 }
