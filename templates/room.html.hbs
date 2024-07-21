@@ -14,20 +14,10 @@
     <ul>
       <li><a href="/">Home</a></li>
     </ul>
+    <h1>
+      <section>{{room.name}}</section>
+    </h1>
   </nav>
-
-  <main>
-    <h1>{{room.name}}</h1>
-  </main>
-
-  <aside>
-    <h2>Rooms:</h2>
-    <ul>
-      {{#each user.rooms}}
-      <li><a href="/room/{{this.id}}">{{this.name}}</a></li>
-      {{/each}}
-    </ul>
-  </aside>
 
   <aside class="right">
     <h3>Members:</h3>
