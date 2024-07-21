@@ -1,4 +1,5 @@
 use rocket::{
+    catch, catchers,
     form::Form,
     fs::{FileServer, NamedFile},
     get, launch, post,
@@ -16,7 +17,6 @@ async fn serve_page(file: &str) -> Option<NamedFile> {
 #[post("/register", data = "<values>")]
 async fn register_page(values: Form<tobychat::LoginForm>) -> Template {
     let values = values.into_inner();
-    dbg!(&values);
     Template::render("register", values)
 }
 
@@ -25,7 +25,7 @@ async fn index(user: User) -> Template {
     Template::render("index", user)
 }
 
-#[get("/<_..>", rank = 100)]
+#[catch(401)]
 async fn redirect_to_login() -> Redirect {
     Redirect::to("/login?error=Please%20log%20in")
 }
@@ -41,9 +41,10 @@ fn rocket() -> _ {
                 register_page,
                 tobychat::register_user,
                 index,
-                redirect_to_login
+                tobychat::room
             ],
         )
         .mount("/public", FileServer::from("public"))
+        .register("/", catchers![redirect_to_login])
         .attach(Template::fairing())
 }

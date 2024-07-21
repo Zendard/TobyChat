@@ -52,6 +52,14 @@ html {
   }
 }
 
+aside {
+  margin: 2rem;
+}
+
+aside.right {
+  float: right;
+}
+
 /* Layout */
 article aside {
   background: var(--color-secondary-accent);

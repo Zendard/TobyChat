@@ -4,23 +4,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TobyChat</title>
+  <title>{{room.name}}</title>
   <link href="/public/style.css" rel="stylesheet">
 </head>
 
 <body>
+
   <nav>
     <ul>
-      <li>Hello, {{username}}</li>
+      <li><a href="/">Home</a></li>
     </ul>
   </nav>
+
   <main>
-    <ul id="rooms">
-      {{#each rooms}}
+    <h1>{{room.name}}</h1>
+  </main>
+
+  <aside>
+    <h2>Rooms:</h2>
+    <ul>
+      {{#each user.rooms}}
       <li><a href="/room/{{this.id}}">{{this.name}}</a></li>
       {{/each}}
     </ul>
-  </main>
+  </aside>
+
+  <aside class="right">
+    <h3>Members:</h3>
+    <ul>
+      {{#each room.members}}
+      <li>{{this}}</li>
+      {{/each}}
+    </ul>
+  </aside>
 </body>
 
 </html>

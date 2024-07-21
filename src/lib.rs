@@ -1,11 +1,13 @@
 use rocket::{
     form::{Form, FromForm},
+    get,
     http::{Cookie, CookieJar, Status},
     post,
     request::{FromRequest, Outcome, Request},
     response::Redirect,
     serde::Serialize,
 };
+use rocket_dyn_templates::{context, Template};
 use serde::Deserialize;
 use std::str::FromStr;
 use surrealdb::{
@@ -31,6 +33,8 @@ impl<'r> FromRequest<'r> for User {
     type Error = NotLoggedIn;
 
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let _ = env!("ROCKET_SECRET_KEY");
+
         let session_token: Option<Uuid> = match req.cookies().get_private("session") {
             Some(token) => Uuid::from_str(token.value()).ok(),
             None => return Outcome::Forward(Status::Unauthorized),
@@ -45,15 +49,18 @@ impl<'r> FromRequest<'r> for User {
 
         let mut response = db
             .query(
-                "SELECT email,username,created,->join->room.name AS rooms FROM ONLY user WHERE session=$session_token LIMIT 1",
+                "SELECT email,username,created,
+                (SELECT META::Id(id) as id, name,created, <-join<-user.username as members FROM ->join->room)
+                AS rooms FROM ONLY user 
+                WHERE session=$session_token LIMIT 1",
             )
             .bind(("session_token", session_token))
             .await
             .unwrap();
 
-        let user: Option<Option<User>> = response.take(0).ok();
+        let user: Result<Option<User>, surrealdb::Error> = response.take(0);
 
-        if let Some(Some(user)) = user {
+        if let Ok(Some(user)) = user {
             Outcome::Success(user)
         } else {
             Outcome::Forward(Status::Unauthorized)
@@ -63,7 +70,10 @@ impl<'r> FromRequest<'r> for User {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Room {
+    id: String,
     name: String,
+    created: Datetime,
+    members: Vec<String>,
     // messages: Vec<Message>,
 }
 
@@ -112,6 +122,47 @@ pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
     }
 }
 
+#[get("/room/<room_id>")]
+pub async fn room(room_id: &str, user: User) -> Option<Template> {
+    let room = get_room(room_id, &user).await;
+
+    match room {
+        Some(room) => Some(Template::render("room", context! {room,user})),
+        None => None,
+    }
+}
+
+async fn get_room(room_id: &str, user: &User) -> Option<Room> {
+    #[derive(Serialize)]
+    struct RoomIdAndEmail<'a> {
+        room_id: &'a str,
+        email: String,
+    }
+
+    let db = connect_to_db().await;
+
+    let mut response = db
+        .query(
+            "SELECT Meta::id(id) as id, name, created, <-join<-user.username as members
+            FROM ONLY type::thing('room',$room_id)
+            WHERE $email in <-join<-user.email",
+        )
+        .bind(RoomIdAndEmail {
+            room_id,
+            email: user.email.clone(),
+        })
+        .await
+        .unwrap();
+
+    let room: Option<Option<Room>> = response.take(0).ok();
+
+    if let Some(Some(room)) = room {
+        return Some(room);
+    } else {
+        return None;
+    }
+}
+
 pub async fn get_user(email: &String, password: &String) -> LoginResult {
     #[derive(Serialize)]
     struct EmailPassword<'a> {
@@ -133,7 +184,13 @@ pub async fn get_user(email: &String, password: &String) -> LoginResult {
             }
             LoginResult::NewUser
         }
-        Some(id) => LoginResult::Id(id.unwrap()),
+        Some(None) => {
+            if user_exists(email).await {
+                return LoginResult::WrongPassword;
+            }
+            LoginResult::NewUser
+        }
+        Some(Some(id)) => LoginResult::Id(id),
     }
 }
 
