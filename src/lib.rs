@@ -127,10 +127,7 @@ pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
 pub async fn room(room_id: &str, user: User) -> Option<Template> {
     let room = get_room(room_id, &user).await;
 
-    match room {
-        Some(room) => Some(Template::render("room", context! {room,user})),
-        None => None,
-    }
+    room.map(|room| Template::render("room", context! {room,user}))
 }
 
 #[get("/room/<room_id>/socket")]
@@ -167,9 +164,9 @@ async fn get_room(room_id: &str, user: &User) -> Option<Room> {
     let room: Option<Option<Room>> = response.take(0).ok();
 
     if let Some(Some(room)) = room {
-        return Some(room);
+        Some(room)
     } else {
-        return None;
+        None
     }
 }
 
