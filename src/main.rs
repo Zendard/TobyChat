@@ -41,7 +41,8 @@ fn rocket() -> _ {
                 register_page,
                 tobychat::register_user,
                 index,
-                tobychat::room
+                tobychat::room,
+                tobychat::room_socket
             ],
         )
         .mount("/public", FileServer::from("public"))

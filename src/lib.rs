@@ -8,6 +8,7 @@ use rocket::{
     serde::Serialize,
 };
 use rocket_dyn_templates::{context, Template};
+use rocket_ws::{Stream, WebSocket};
 use serde::Deserialize;
 use std::str::FromStr;
 use surrealdb::{
@@ -130,6 +131,15 @@ pub async fn room(room_id: &str, user: User) -> Option<Template> {
         Some(room) => Some(Template::render("room", context! {room,user})),
         None => None,
     }
+}
+
+#[get("/room/<room_id>/socket")]
+pub async fn room_socket(room_id: &str, user: User, ws: WebSocket) -> Stream!['static] {
+    Stream! { ws =>
+    for await message in ws {
+                yield message?;
+            }
+        }
 }
 
 async fn get_room(room_id: &str, user: &User) -> Option<Room> {

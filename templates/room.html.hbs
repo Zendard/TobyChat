@@ -14,19 +14,31 @@
     <ul>
       <li><a href="/">Home</a></li>
     </ul>
-    <h1>
-      <section>{{room.name}}</section>
-    </h1>
-  </nav>
 
-  <aside class="right">
-    <h3>Members:</h3>
-    <ul>
-      {{#each room.members}}
-      <li>{{this}}</li>
-      {{/each}}
-    </ul>
-  </aside>
+  </nav>
+  <section>
+    <h1>
+      {{room.name}}
+    </h1>
+  </section>
+  <section>
+    <div>
+      <ul id="message_list"></ul>
+      <form id="send_message" onsubmit="return false">
+        <input type="text" name="message" placeholder="Type message here" required>
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    <aside class="right">
+      <h3>Members:</h3>
+      <ul>
+        {{#each room.members}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </aside>
+  </section>
+  <script src="/public/room.js"></script>
 </body>
 
 </html>
