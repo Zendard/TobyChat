@@ -26,6 +26,11 @@ async fn index(user: User) -> Template {
     Template::render("index", user)
 }
 
+#[get("/create-room")]
+async fn create_room_page(user: User) -> Template {
+    Template::render("create_room", user)
+}
+
 #[catch(401)]
 async fn redirect_to_login() -> Redirect {
     Redirect::to("/login?error=Please%20log%20in")
@@ -45,7 +50,8 @@ fn rocket() -> _ {
                 tobychat::room,
                 tobychat::room_stream,
                 tobychat::post_message,
-                tobychat::logout
+                tobychat::logout,
+                create_room_page
             ],
         )
         .mount("/public", FileServer::from("public"))

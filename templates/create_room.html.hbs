@@ -1,15 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" color-mode="user">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
-  <link href="css/style.css" rel="stylesheet">
+  <title>Create Room</title>
+  <link href="/public/style.css" rel="stylesheet">
 </head>
 
 <body>
+  <nav>
+    <ul>
+      <li>Hello, {{username}}</li>
+      <li><a href="/logout">Log Out</a></li>
+    </ul>
+  </nav>
 
+  <main>
+    <form action="/create-room" method="POST">
+      <h1>Create Room</h1>
+      <label for="name">Room Name:</label>
+      <input type="text" name="room_name" placeholder="Untitled room" required>
+      <label for="users">Add users:</label>
+      <fieldset name="users">
+        <input type="email" name="user1" class="user_input_field" placeholder="email@example.com" required>
+        <button type="button" id="add_user">+</button>
+      </fieldset>
+
+      <button type="submit">Create Room</button>
+    </form>
+  </main>
+
+  <script src="/public/create_room.js"></script>
 </body>
 
 </html>
