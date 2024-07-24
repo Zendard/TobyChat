@@ -5,6 +5,7 @@ use rocket::{
     get, launch, post,
     response::Redirect,
     routes,
+    tokio::sync::broadcast::channel,
 };
 use rocket_dyn_templates::Template;
 use tobychat::User;
@@ -42,10 +43,12 @@ fn rocket() -> _ {
                 tobychat::register_user,
                 index,
                 tobychat::room,
-                tobychat::room_socket
+                tobychat::room_stream,
+                tobychat::post_message
             ],
         )
         .mount("/public", FileServer::from("public"))
         .register("/", catchers![redirect_to_login])
         .attach(Template::fairing())
+        .manage(channel::<tobychat::Message>(1024).0)
 }

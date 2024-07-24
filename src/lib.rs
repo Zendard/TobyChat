@@ -4,11 +4,18 @@ use rocket::{
     http::{Cookie, CookieJar, Status},
     post,
     request::{FromRequest, Outcome, Request},
-    response::Redirect,
+    response::{
+        stream::{Event, EventStream},
+        Redirect,
+    },
     serde::Serialize,
+    tokio::{
+        select,
+        sync::broadcast::{error::RecvError, Sender},
+    },
+    Shutdown, State,
 };
 use rocket_dyn_templates::{context, Template};
-use rocket_ws::{Stream, WebSocket};
 use serde::Deserialize;
 use std::str::FromStr;
 use surrealdb::{
@@ -78,8 +85,10 @@ struct Room {
     // messages: Vec<Message>,
 }
 
-struct Message {
-    id: u32,
+#[derive(Serialize, Clone, Debug)]
+pub struct Message {
+    author: String,
+    room: RecordId,
     content: String,
 }
 
@@ -130,13 +139,70 @@ pub async fn room(room_id: &str, user: User) -> Option<Template> {
     room.map(|room| Template::render("room", context! {room,user}))
 }
 
-#[get("/room/<room_id>/socket")]
-pub async fn room_socket(room_id: &str, user: User, ws: WebSocket) -> Stream!['static] {
-    Stream! { ws =>
-    for await message in ws {
-                yield message?;
-            }
+#[derive(FromForm)]
+pub struct SendMessageForm {
+    message: String,
+}
+
+#[post("/room/<room_id>", data = "<message_form>")]
+pub async fn post_message(
+    room_id: &str,
+    user: User,
+    message_form: Form<SendMessageForm>,
+    queue: &State<Sender<Message>>,
+) -> Status {
+    dbg!(&room_id);
+    let result = queue.send(Message {
+        author: user.username,
+        content: message_form.message.to_string(),
+        room: RecordId::from_str(&format!("room:{room_id}")).unwrap(),
+    });
+
+    match result {
+        Ok(..) => Status::Ok,
+        Err(..) => Status::BadRequest,
+    }
+}
+
+#[get("/room/<room_id>/stream")]
+pub async fn room_stream(
+    room_id: &str,
+    user: User,
+    queue: &State<Sender<Message>>,
+    mut end: Shutdown,
+) -> Option<EventStream![]> {
+    let mut rx = queue.subscribe();
+    let room_id = room_id.to_string();
+    let room_id_copy = room_id.clone();
+
+    let stream = EventStream! {
+        loop {
+            let msg = select! {
+                msg = rx.recv() => match msg {
+                    Ok(msg) => msg,
+                    Err(RecvError::Closed) => break,
+                    Err(RecvError::Lagged(_)) => continue,
+                },
+                _ = &mut end => break,
+            };
+
+        if msg.room.to_string()==format!("room:{room_id}"){
+            dbg!(&msg);
+            yield Event::json(&msg);
         }
+        }
+    };
+    if user
+        .rooms
+        .iter()
+        .map(|room| room.id.clone())
+        .collect::<Vec<String>>()
+        .contains(&room_id_copy)
+    {
+        Some(stream)
+    } else {
+        None
+    }
 }
 
 async fn get_room(room_id: &str, user: &User) -> Option<Room> {
