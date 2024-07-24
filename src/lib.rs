@@ -151,7 +151,13 @@ pub async fn post_message(
     message_form: Form<SendMessageForm>,
     queue: &State<Sender<Message>>,
 ) -> Status {
-    dbg!(&room_id);
+    let binding = Message {
+        author: user.email,
+        room: RecordId::from_str(&format!("room:{room_id}")).unwrap(),
+        content: message_form.message.clone(),
+    };
+    connect_to_db().await.query("RELATE (SELECT id FROM ONLY user WHERE email=$author LIMIT 1)->send_message->$room SET content=$content;").bind(binding).await.unwrap();
+
     let result = queue.send(Message {
         author: user.username,
         content: message_form.message.to_string(),
