@@ -235,8 +235,8 @@ pub struct CreateRoomForm {
 }
 
 #[post("/create-room", data = "<create_room_form>")]
-pub async fn create_room(create_room_form: Form<CreateRoomForm>) -> Redirect {
-    dbg!(&create_room_form);
+pub async fn create_room(mut create_room_form: Form<CreateRoomForm>, user: User) -> Redirect {
+    create_room_form.users.push(user.email);
 
     let db = connect_to_db().await;
 

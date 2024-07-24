@@ -23,6 +23,7 @@
       <input type="text" name="name" placeholder="Untitled room" required>
       <label for="users">Add users:</label>
       <fieldset name="users">
+        <input type="email" name="self" value="{{email}}" disabled>
         <input type="email" name="users.0" class="user_input_field" placeholder="email@example.com" required>
         <button type="button" id="add_user">+</button>
       </fieldset>
