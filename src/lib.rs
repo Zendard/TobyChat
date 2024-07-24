@@ -205,6 +205,18 @@ pub async fn room_stream(
     }
 }
 
+#[get("/logout")]
+pub async fn logout(user: User, jar: &CookieJar<'_>) -> Redirect {
+    connect_to_db()
+        .await
+        .query("UPDATE ONLY user SET session=NONE WHERE email=$email")
+        .bind(("email", user.email))
+        .await
+        .unwrap();
+    jar.remove_private("session");
+    Redirect::to("/login")
+}
+
 async fn get_room(room_id: &str, user: &User) -> Option<Room> {
     #[derive(Serialize)]
     struct RoomIdAndEmail<'a> {
