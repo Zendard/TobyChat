@@ -51,7 +51,8 @@ fn rocket() -> _ {
                 tobychat::room_stream,
                 tobychat::post_message,
                 tobychat::logout,
-                create_room_page
+                create_room_page,
+                tobychat::create_room,
             ],
         )
         .mount("/public", FileServer::from("public"))

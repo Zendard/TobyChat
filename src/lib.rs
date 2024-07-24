@@ -228,6 +228,37 @@ pub async fn logout(user: User, jar: &CookieJar<'_>) -> Redirect {
     Redirect::to("/login")
 }
 
+#[derive(FromForm, Debug)]
+pub struct CreateRoomForm {
+    name: String,
+    users: Vec<String>,
+}
+
+#[post("/create-room", data = "<create_room_form>")]
+pub async fn create_room(create_room_form: Form<CreateRoomForm>) -> Redirect {
+    dbg!(&create_room_form);
+
+    let db = connect_to_db().await;
+
+    let mut response = db
+        .query("(CREATE room SET name=$name)[0].id")
+        .bind(("name", create_room_form.name.clone()))
+        .await
+        .unwrap();
+
+    let room_id: Option<RecordId> = response.take(0).unwrap();
+    let room_id = room_id.unwrap();
+
+    for user in &create_room_form.users {
+        db.query("RELATE (SELECT id FROM user WHERE email=$email)->join->$room_id")
+            .bind(("email", user))
+            .bind(("room_id", &room_id))
+            .await
+            .unwrap();
+    }
+    Redirect::to(format!("/room/{}", room_id.id))
+}
+
 async fn get_room(room_id: &str, user: &User) -> Option<Room> {
     #[derive(Serialize)]
     struct RoomIdAndEmail<'a> {
