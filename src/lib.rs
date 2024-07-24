@@ -85,7 +85,7 @@ struct Room {
     // messages: Vec<Message>,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     author: String,
     room: RecordId,
@@ -135,8 +135,14 @@ pub async fn register_user(register_form: Form<RegisterForm>) -> Redirect {
 #[get("/room/<room_id>")]
 pub async fn room(room_id: &str, user: User) -> Option<Template> {
     let room = get_room(room_id, &user).await;
+    let room = room?;
 
-    room.map(|room| Template::render("room", context! {room,user}))
+    let mut response = connect_to_db().await.query("SELECT content, (<-user.username)[0] AS author, (->room)[0] AS room FROM type::thing('room',$room)<-send_message")
+        .bind(("room", room.id.clone())).await.unwrap();
+
+    let messages: Vec<Message> = response.take(0).unwrap();
+
+    Some(Template::render("room", context! {room,user, messages}))
 }
 
 #[derive(FromForm)]
@@ -193,7 +199,6 @@ pub async fn room_stream(
             };
 
         if msg.room.to_string()==format!("room:{room_id}"){
-            dbg!(&msg);
             yield Event::json(&msg);
         }
         }
