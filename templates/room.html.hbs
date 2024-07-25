@@ -24,11 +24,13 @@
   </section>
   <section>
     <div>
-      <ul id="message_list" style="height: 50vh; overflow: scroll;">
-        {{#each messages}}
-        <li>{{this.author}}: {{this.content}}</li>
-        {{/each}}
-      </ul>
+      <div style="flex-direction: column-reverse; display: flex; height: 50vh; overflow: scroll; margin-bottom: 3px;">
+        <ul id="message_list" style="margin-bottom: 0;">
+          {{#each messages}}
+          <li>{{this.author}}: {{this.content}}</li>
+          {{/each}}
+        </ul>
+      </div>
       <form id="send_message" onsubmit="return false">
         <input type="text" name="message" placeholder="Type message here" required>
         <button type="submit">Send</button>
