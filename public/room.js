@@ -21,4 +21,5 @@ function handleSendMessage() {
     method: "POST",
     body: message
   })
+  send_form.querySelector("input").value = ""
 }
