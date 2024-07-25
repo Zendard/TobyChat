@@ -1,0 +1,3 @@
+[default.tls]
+key= "tls/tobycloud.duckdns.org.key"
+certs= "tls/tobycloud.duckdns.org.crt"
