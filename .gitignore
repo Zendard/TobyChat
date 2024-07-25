@@ -16,4 +16,5 @@ target/
 
 /database
 /database:5000
+/tls
 .env
